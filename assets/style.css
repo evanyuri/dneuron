@@ -2,34 +2,83 @@ body {
 background-color: White;
   } 
 
-.button-col-1 {
+  .link-1 {
+    position: absolute;
+    right: 5px;
+    top:5px;
+    color:white;
+    z-index: 1;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .link-1:hover{
+    color: rgb(204, 172, 215);
+  }
+
+  .virus {
+    width: 50px;
+    height: 50px;
+    background-color: rgba(0,0,0,0);
+    position: relative;
+    animation-name: example;
+    animation-duration: 15s;
+    animation-iteration-count: infinite;
+    border-radius: 10px;
+    border-color: rgb(98, 26, 106);
+    border-width: 10px;
+    border-style: solid;
+    position: absolute;
+
+  }
+  
+  @keyframes example {
+    0%   {right:10px; top:10px;}
+    25%  {right:100px; top:50px;}
+    50%  {right:100px; top:10px;}
+    75%  {right:10px; top:50px;}
+    100% {right:10px; top:10px;}
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+
+
+
+.dropIn {
     font-size: 18px;
     padding: 0px;
-    background-color: rgb(45, 178, 176);
-    border-radius: 40px;
+    background-color: rgb(255, 255, 255);
+    border-radius: 20px;
     text-align: center;
     align-items: center;
     display: flex;
-    border-style: solid;
-    border-width: 5px;
-    border-color: white;
+    border-style: dashed;
+    border-width: 3px;
+    border-color: rgb(115, 72, 233);
     justify-content: center;
-    color: white;
+    color: rgb(98, 32, 139);
     text-decoration: none;
     margin: 0px;
-    height: 4em;
+    height: 6em;
     transition: background-color 0.5s;
+    width: 100%;
+
 }
 
-.button-col-1:hover{
+.dropIn:hover{
   transition: border-color 0.1s;
   transition: border-width 0.1s;
-  background-color:rgb(29, 124, 123);
+  background-color:rgb(222, 182, 233);
   color: white;
 }
 
-.button-col-1:active {
-  border-color: rgb(202, 234, 234);
+.dropIn:active {
+  border-color: rgb(115, 72, 233);
   border-style:solid;
   border-width: 10px;
  }
@@ -82,7 +131,7 @@ color: white;
   color: white;
   text-decoration: none;
   margin: 0px;
-  height: 3em;
+  height: 4em;
   transition: background-color 0.5s;
 }
 
@@ -149,18 +198,18 @@ color: white;
 
 .Select--multi > .Select-control .Select-value, .Select-placeholder {
   border: 1px solid rgb(129, 154, 184);
-  border-radius: 30px;
+  border-radius: 20px;
   background-color: rgb(209, 230, 241);
   color: #0d1d48;
   
 }
 
 .Select-control  {
-  border-radius:15px;
+  border-radius:20px;
 }
 
 .date-range {
-  border-radius:15px !important;
+  border-radius:20px !important;
 
 }
 

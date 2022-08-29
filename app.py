@@ -1,75 +1,68 @@
 #Dash Plotly Libraries
-from dash import dcc
 import dash
-from dash import Dash, dcc, html, Input, Output, State
+from dash import Dash, dcc, html, Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
-
-
 # ML Libraries
 import tensorflow as tf
-
+from sklearn.linear_model import LinearRegression
 # Data Structure
 import pandas as pd
 import numpy as np
 import base64
 import io
 import os
-
-#just for app building
-
-# path = os.getcwd() + "/weather.csv"
-# df = pd.read_csv(path)
-
+from json import JSONEncoder
+import json
+import pickle
+import codecs
 
 app = Dash(__name__, assets_folder="assets", external_stylesheets = [dbc.themes.BOOTSTRAP, 'style.css'], suppress_callback_exceptions=True)
+app.title = 'ML It'
+app._favicon = ("assets/falvicon.ico")
 
+app.layout = html.Div(style={},
+    children=[ 
+html.Div(children=[
+html.H1(children='Deep Neuron', ),
+html.H6(children='Make machine learning and insights easy and for the masses', style={'color':'rgb(240,200,255)'}),
 
-app.layout = html.Div(
-    style={'border-radius': '20px', 'margin':'30px'},
+],style={'color':'white','background-image':'linear-gradient(to right, rgb(100,20,150), rgb(150,50,200))', 
+'padding':'20px', 'padding-left':'20px'},
+),
+
+html.A("Kruchowy.com", href='https://www.kruchowy.com', target="_blank", className='link-1'),
+
+html.Div(className="virus"),
+html.Div(style={'border-radius': '20px', 'padding':'30px'},
     children=[
 
-    html.H1(children='Deep Neural Network It'),
     dbc.Row([
     dbc.Col([
-        html.H5(children='1. Upload single header data file'),
-        dcc.Upload(
-        id='upload-data',
-        children=html.Div([
-            'Drop or ',
-            html.A('Select File')
-            ]),
-        style={
-        'width': '100%',
-        'padding-top': '35px',
-        'height': '100px',
-        'lineHeight': '20px',
-        'borderWidth': '1px',
-        'borderStyle': 'dashed',
-        'borderRadius': '5px',
-        'textAlign': 'center',
-        'margin-bottom': '30px',
-        'border-radius': '20px',
-        },
-    # Allow multiple files to be uploaded
-     multiple=False
-            ),
-    html.H5(children='2. Choose variables'),
-    dcc.Dropdown(id='variables', multi = True, placeholder='Choose Variables',options=[],value=[], style={'margin-bottom': '15px'}),
-    html.H5(children='3. Choose ouput to predict'),
-    dcc.Dropdown(id='outputs', multi = False, placeholder='Choose Output',options=[], style={'margin-bottom': '15px'}),
-    html.Button('Train!',id ='train-button', className="button-col-2", style={'width': '100%',}),
+        html.H5(children='1. Upload single header data file (.csv or Excel)'),
+        
+        dcc.Upload(id='upload-data',children=html.Div(['Drop or ',html.A('Select File')]),multiple=False,className='dropIn',),
+        html.A("Or download example weather data to use", href='https://drive.google.com/file/d/1HN4-2rccp-vELPO1BLpJmH92fpH61X62/view?usp=sharing', target="_blank",style={'font-size': '12px','text-decoration': 'none', 'padding':'5px', 'margin-bottom':'10px'}),
 
-    ], width=4),
-    dbc.Col([
-        html.Div(id='sliders'),
-    ], width = 3), 
+    html.H5(children='2. Choose variables', style={'margin-top':'20px'}),
+    dcc.Dropdown(id='variables', multi = True, placeholder='Choose Variables',options=[],value=[], style={'margin-bottom': '15px'}),
+    html.H5(children='3. Choose output to predict'),
+    dcc.Dropdown(id='outputs', multi = False, placeholder='Choose Output',options=[], style={'margin-bottom': '15px'}),
+    html.Button('Build!',id ='train-button', className="button-col-3", style={'width': '100%',}),
+
+    ], width=3),
     dbc.Col([
         html.Div(id='results'),
-    ], width = 5), 
+    ], width = 6), 
+    dbc.Col([
+        html.Div(id='slider-div-parent'),
+    ], width = 3), 
     dcc.Store(id='intermediate-value'),
+    dcc.Store(id='intermediate-model'),
+    dcc.Store(id='intermediate-weights'),
 
-    ]),])
+
+    ]),]),])
 
 @app.callback(
     Output(component_id='variables', component_property='options'),
@@ -118,33 +111,12 @@ def ingest_csv(contents, fname, output, vars):
         #     print(e)
         #     return [], [], [], []
 
-
-@app.callback(
-
-    Output('sliders', 'children'),
-    Input('train-button', 'n_clicks'),
-    State('variables', 'value'),
-    State('outputs', 'value'),
-    State('intermediate-value', 'data'),
-)
-def update_output(n_clicks, vars, output, df_JSON):
-    changed_id = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
-    if 'train-button' in changed_id:
-        df = pd.read_json(df_JSON, orient='split')
-        df = df[[output]+ vars]
-        Min = df.min().values.tolist()
-        Mean = df.mean().values.tolist()
-        Max = df.max().values.tolist()
-        sliders = []
-        for i in range(len(vars)):
-            sliders = sliders + [dbc.Row([html.H6(vars[i]), dcc.Slider(Min[i], Max[i], included=False, value=Mean[i], id=f'slider{i}',tooltip={"placement": "top", "always_visible": True} )])]
-        return sliders
-    else: return []
-
-
 @app.callback(
 
     Output('results', 'children'),
+    Output('intermediate-model', 'data'),
+    Output('intermediate-weights', 'data'),
+
     Input('train-button', 'n_clicks'),
     State('variables', 'value'),
     State('outputs', 'value'),
@@ -155,11 +127,9 @@ def build_model(n_clicks, vars, output, df_JSON):
     changed_id = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
     if 'train-button' in changed_id:
         df = pd.read_json(df_JSON, orient='split')
-        #print('NA values in df: ', df.isna().sum())
         df = df[[output]+ vars]
         df = df.dropna()
         #print(df)
-
         train_dataset = df.sample(frac=0.8, random_state=0)
         test_dataset = df.drop(train_dataset.index)
 
@@ -169,15 +139,15 @@ def build_model(n_clicks, vars, output, df_JSON):
         train_labels = train_features.pop(output)
         test_labels = test_features.pop(output)
 
-        normalizer = tf.keras.layers.Normalization(axis=-1)
+        normalizer = tf.keras.layers.Normalization(axis=-1, input_dim=len(vars))
         normalizer.adapt(np.array(train_features))
 
         #build model 
         def build_and_compile_model(norm):
             model = tf.keras.Sequential([
                 norm,
-                tf.keras.layers.Dense(8, activation='relu', name='layer1'),
-                #tf.keras.layers.Dense(8, activation='relu', name='layer2'),
+                tf.keras.layers.Dense(len(vars), activation='relu', name='layer1'),
+                #tf.keras.layers.Dense(len(vars), activation='relu', name='layer2'),
                 tf.keras.layers.Dense(1, name='layerFinal')
 
             ])
@@ -201,52 +171,136 @@ def build_model(n_clicks, vars, output, df_JSON):
         {'loss': history.history['loss'],
         'val_loss': history.history['val_loss'],})
         fig_losses = go.Figure()
-        fig_losses.add_trace(go.Scatter(x = losses.index, y = losses['val_loss'], name='val_loss'))
-        fig_losses.add_trace(go.Scatter(x = losses.index, y = losses['loss'], name='loss'))
-        fig_losses.update_layout(margin=dict(l=1, r=10, t=30, b=70), plot_bgcolor = "white", paper_bgcolor="white", hovermode="x", legend=dict(x=0.7,y=0.9))
+        fig_losses.add_trace(go.Scatter(x = losses.index, y = losses['val_loss'], name='val_loss',line=dict(color='rgb(200,200,200)')))
+        fig_losses.add_trace(go.Scatter(x = losses.index, y = losses['loss'], name='loss', line=dict(color='purple')))
+        fig_losses.update_layout(margin=dict(l=1, r=10, t=30, b=70), plot_bgcolor = "white", paper_bgcolor="white", hovermode="x", legend=dict(x=0.5,y=0.9))
         fig_losses.update_xaxes(showline=True, linewidth=1, linecolor='black', mirror=True, showgrid =False, zeroline = False, title='Epoch')
         fig_losses.update_yaxes(showline=True, linewidth=1, linecolor='black', mirror=True, showgrid = False, zeroline = False, title ='Error')
 
-
+        print(test_features)
         test_predictions = model.predict(test_features).flatten()
+        X = test_labels.values.reshape(-1,1)
+        LR_model = LinearRegression()
+        LR_model.fit(X, test_predictions)
+        x_range = np.linspace(X.min(), X.max(), 100)
+        y_range = LR_model.predict(x_range.reshape(-1, 1))
+        r2 = LR_model.score(X, test_predictions)
+
         fig_test = go.Figure()
+        fig_test.add_annotation(xref="x domain",yref="y domain",x=0.8,y=0.95,text=f"R-squared: {r2:.2f}", showarrow=False,)
         fig_test.add_trace(go.Scatter(x = test_labels, y = test_predictions, marker=dict(color='rgba(30, 100, 200, 1)', size=5), mode='markers', marker_symbol='circle'))
+        fig_test.add_trace(go.Scatter(name='line of best fit', x=x_range, y=y_range, mode='lines', line=dict(color='pink')))
+
+
         fig_test.update_layout(margin=dict(l=1, r=10, t=30, b=70), plot_bgcolor = "white", paper_bgcolor="white", hovermode="x", showlegend=False)
         fig_test.update_xaxes(showline=True, linewidth=1, linecolor='black', mirror=True, showgrid =False, zeroline = False, title='Predictions')
         fig_test.update_yaxes(showline=True, linewidth=1, linecolor='black', mirror=True, showgrid = False, zeroline = False, title ='True Value')
 
-
-        #print(model.layers[0].weights.shape[0])
         fig_nodes = go.Figure()
-        fig_nodes.add_trace(go.Scatter(go.Scatter(x=np.zeros(len(model.get_weights()[0])), y=np.arange(len(model.get_weights()[0])), mode='markers')))
-        # fig_nodes.add_trace(go.Scatter(go.Scatter(x=np.zeros(len(model.get_weights()[1])) + 1, y=np.arange(len(model.get_weights()[1])), mode='markers')))
-        #fig_nodes.add_trace(go.Scatter(go.Scatter(x=np.zeros(len(model.get_weights()[2])) + 2, y=np.arange(len(model.get_weights()[2])), mode='markers')))
+        layers = model.layers
+        #print(layers[1].name)
+        print(layers[1])
+        for k in range(1,len(layers)):
+            layer_nodes = np.shape(model.get_layer(layers[k].name).weights[0])[0]
+            for i in range(layer_nodes):
+                for j in range(np.shape(model.get_layer(layers[k].name).weights[0][1])[0]):
+                    value = model.get_layer(layers[k].name).weights[0][i][j].numpy()
+                    width = (abs(value))*5
+                    if value > 0: color = 'rgba(0,120,20,0.5)'
+                    else: color = 'rgba(60,0,120,0.5)'
+                    y1 = -layer_nodes/2 + i
+                    y2 = -np.shape(model.get_layer(layers[k].name).weights[0][1])[0]/2 + j
+                    fig_nodes.add_trace(go.Scatter(go.Scatter(x=[k,k+1]), y=[y1,y2], mode='markers+lines', line=dict(color=color, width=width), marker=dict(color='black', size=10)))
 
-        fig_nodes.update_layout(margin=dict(l=1, r=10, t=30, b=70), plot_bgcolor = "white", paper_bgcolor="white", showlegend=False)
-        fig_nodes.update_xaxes(range = [-0.1,3], showticklabels=False, showline=True, linewidth=1, linecolor='black', mirror=True, showgrid =False, zeroline = False)
-        fig_nodes.update_yaxes(tickvals=np.arange(len(model.get_weights()[0])), ticktext = vars, showline=True, showticklabels=True, linewidth=1, linecolor='black', mirror=True, showgrid = False, zeroline = False)
+        fig_nodes.update_layout(margin=dict(l=1, r=10, t=30, b=70), plot_bgcolor = "white", paper_bgcolor="white", showlegend=False, hovermode=False,)
+        fig_nodes.update_xaxes(range = [0.9,len(layers)+0.1], showticklabels=False, showline=False, linewidth=1, linecolor='black', mirror=True, showgrid =False, zeroline = False)
+        fig_nodes.update_yaxes(tickvals=np.arange(-len(model.get_weights()[0])/2,len(model.get_weights()[0]/2)), ticktext = vars, showline=False, showticklabels=True, linewidth=1, linecolor='black', mirror=True, showgrid = False, zeroline = False)
+
+        print(model.summary())
+        div = [
+            html.H3('Model Strength'),
+            dbc.Row([
+            dbc.Col(dcc.Graph(figure=fig_losses, config={'displaylogo': False,  'displayModeBar': False}, style={'height':'20em'})),
+            dbc.Col(dcc.Graph(figure=fig_test, config={'displaylogo': False,  'displayModeBar': False}, style={'height':'20em'})),
+            ]),
+            dcc.Graph(figure=fig_nodes, config={'displaylogo': False, 'displayModeBar': False}, style={'height':'50em'})]
+
+        weights_list = model.get_weights()
 
 
+        obj = weights_list
+        obj_base64string = codecs.encode(pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL), "base64").decode('latin1')
 
-        div = [dcc.Graph(figure=fig_losses),dcc.Graph(figure=fig_test), dcc.Graph(figure=fig_nodes)]
-
-
-
-        print('print shape:')
-        # for layer in model.layers:
-        #     print(layer.name, layer)
-        print((model.get_layer("layer1").weights[0][1]))
-        # print(model.get_weights()[1])
-        # print(model.get_weights()[2])
-        # print(model.get_weights()[3])
+        return div, model.to_json(), obj_base64string,
+    else: return [], '', ''
 
 
-        #print(model.get_weights()[1])
-        # print(model.layers[0].bias.numpy())
-        # print(model.layers[0].bias_initializer)
+@app.callback(
 
-        return div
-    else: return [],
+    Output('slider-div-parent', 'children'),
+    Input('train-button', 'n_clicks'),
+    State('variables', 'value'),
+    State('outputs', 'value'),
+    State('intermediate-value', 'data'),
+    Input('intermediate-model', 'data'),
+
+)
+def build_sliders(n_clicks, vars, output, df_JSON, model_JSON):
+    changed_id = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
+    if 'train-button' in changed_id:
+        if model_JSON != '':
+            #model  = tf.keras.models.model_from_json(model_JSON)
+            df = pd.read_json(df_JSON, orient='split')
+            df = df[[output]+ vars]
+            Min = df[vars].min().values.tolist()
+            Mean = df[vars].mean().values.tolist()
+            Max = df[vars].max().values.tolist()
+            sliders = html.Div(
+                        children =[dbc.Row([
+                                    html.H6(vars[i]),
+                                    dcc.Slider(
+                                        Min[i],
+                                        Max[i],
+                                        included=False,
+                                        value=Mean[i],
+                                        id={'type':'cutsom-sliders', 'id': 'input %i' % i},
+                                        tooltip={"placement": "top", "always_visible": True} )])
+                                    for (i, var) in enumerate(vars)])
+
+            return dbc.Col([
+                html.H3('Make Predictions'),
+                html.H4(f'Predicted {output}:'),
+                html.Div(id='model-outcome',  style={'background-color':'pink', 'border-radius': '20px', 'padding-left':'5px'}),
+                #html.H4(result)
+                sliders])
+    else: return []
+
+@app.callback(
+
+    Output({'type':'cutsom-sliders', 'id': ALL}, 'value'),
+    Output('model-outcome', 'children'),
+
+    Input({'type':'cutsom-sliders', 'id': ALL}, 'value'),
+    State('variables', 'value'),
+    Input('intermediate-model', 'data'),
+    Input('intermediate-weights', 'data'),
+    )
+
+
+def update_sliders(slider_values, vars, model_JSON, weightsB64):
+    #print(slider_values)
+    model  = tf.keras.models.model_from_json(model_JSON)
+    weights = pickle.loads(codecs.decode(weightsB64.encode('latin1'), "base64"))
+    model.set_weights(weights)
+    print(model.summary())
+
+    #slider_values = [22.8,16.2,5.4,7.7,31.0,7.0,6,82,32,1024.1,0.0]
+    # df = pd.DataFrame([slider_values])
+    # df.columns =vars
+    test_predictions = model.predict([slider_values]).flatten()
+
+    #test_predictions = model.predict(df).flatten()
+    return slider_values, html.H3("{:.2f}".format(test_predictions[0]))
 
 if __name__ == '__main__':
     app.run_server(debug=True)
