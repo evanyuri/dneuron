@@ -1,0 +1,34 @@
+runtime: python39
+# env: flex
+
+# runtime_config:
+#     python_version: 3.7
+
+instance_class: F4_1G
+
+
+handlers:
+- url: /assets
+  static_dir: assets
+
+# - url: /favicon.ico
+#   static_files: assets/favicon.ico
+#   upload: assets/favicon.ico
+
+- url: /favicon\.ico
+  static_files: assets/favicon.ico
+  upload: assets/favicon\.ico
+
+- url: /.*
+  script: main.py
+
+# manual_scaling:
+#   instances: 1
+
+# resources:
+#   cpu: 2
+#   memory_gb: 8
+#   disk_size_gb: 10
+
+# readiness_check:
+#   app_start_timeout_sec: 1800

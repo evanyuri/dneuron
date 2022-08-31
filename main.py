@@ -11,17 +11,21 @@ import pandas as pd
 import numpy as np
 import base64
 import io
-import os
 from json import JSONEncoder
 import json
 import pickle
 import codecs
 
-app = Dash(__name__, assets_folder="assets", external_stylesheets = [dbc.themes.BOOTSTRAP, 'style.css'], suppress_callback_exceptions=True)
-app.title = 'ML It'
-app._favicon = ("assets/falvicon.ico")
+dash_app = dash.Dash(__name__, assets_folder='assets', title = 'Deep Neuron',
+external_stylesheets = [dbc.themes.BOOTSTRAP, '/assets/style.css'],
+suppress_callback_exceptions=True,)
+# dash_app.title = 'Deep Neuron'
+# app = dash_app.server()
+app = dash_app.server
 
-app.layout = html.Div(style={},
+
+
+dash_app.layout = html.Div(style={},
     children=[ 
 html.Div(children=[
 html.H1(children='Deep Neuron', ),
@@ -38,7 +42,7 @@ html.Div(style={'border-radius': '20px', 'padding':'30px'},
     children=[
 
     dbc.Row([
-    dbc.Col([
+    html.Div([
         html.H5(children='1. Upload single header data file (.csv or Excel)'),
         
         dcc.Upload(id='upload-data',children=html.Div(['Drop or ',html.A('Select File')]),multiple=False,className='dropIn',),
@@ -50,13 +54,16 @@ html.Div(style={'border-radius': '20px', 'padding':'30px'},
     dcc.Dropdown(id='outputs', multi = False, placeholder='Choose Output',options=[], style={'margin-bottom': '15px'}),
     html.Button('Build!',id ='train-button', className="button-col-3", style={'width': '100%',}),
 
-    ], width=3),
-    dbc.Col([
+    ], style={'width':'300px'}),
+    # html.Div([
+    #     html.Div('text'),
+    # ], style={'width':'500px', 'background-color':'yellow'}),     
+    html.Div([
         html.Div(id='results'),
-    ], width = 6), 
-    dbc.Col([
+    ], style={'width':'600px'}), 
+    html.Div([
         html.Div(id='slider-div-parent'),
-    ], width = 3), 
+    ], style={'width':'200px'}), 
     dcc.Store(id='intermediate-value'),
     dcc.Store(id='intermediate-model'),
     dcc.Store(id='intermediate-weights'),
@@ -64,7 +71,7 @@ html.Div(style={'border-radius': '20px', 'padding':'30px'},
 
     ]),]),])
 
-@app.callback(
+@dash_app.callback(
     Output(component_id='variables', component_property='options'),
     Output(component_id='variables', component_property='value'),
     Output(component_id='outputs', component_property='options'),
@@ -111,7 +118,7 @@ def ingest_csv(contents, fname, output, vars):
         #     print(e)
         #     return [], [], [], []
 
-@app.callback(
+@dash_app.callback(
 
     Output('results', 'children'),
     Output('intermediate-model', 'data'),
@@ -235,7 +242,7 @@ def build_model(n_clicks, vars, output, df_JSON):
     else: return [], '', ''
 
 
-@app.callback(
+@dash_app.callback(
 
     Output('slider-div-parent', 'children'),
     Input('train-button', 'n_clicks'),
@@ -275,32 +282,33 @@ def build_sliders(n_clicks, vars, output, df_JSON, model_JSON):
                 sliders])
     else: return []
 
-@app.callback(
+# @dash_app.callback(
 
-    Output({'type':'cutsom-sliders', 'id': ALL}, 'value'),
-    Output('model-outcome', 'children'),
+#     Output({'type':'cutsom-sliders', 'id': ALL}, 'value'),
+#     Output('model-outcome', 'children'),
 
-    Input({'type':'cutsom-sliders', 'id': ALL}, 'value'),
-    State('variables', 'value'),
-    Input('intermediate-model', 'data'),
-    Input('intermediate-weights', 'data'),
-    )
+#     Input({'type':'cutsom-sliders', 'id': ALL}, 'value'),
+#     State('variables', 'value'),
+#     Input('intermediate-model', 'data'),
+#     Input('intermediate-weights', 'data'),
+#     )
 
 
-def update_sliders(slider_values, vars, model_JSON, weightsB64):
-    #print(slider_values)
-    model  = tf.keras.models.model_from_json(model_JSON)
-    weights = pickle.loads(codecs.decode(weightsB64.encode('latin1'), "base64"))
-    model.set_weights(weights)
-    print(model.summary())
+# def update_sliders(slider_values, vars, model_JSON, weightsB64):
+#     #print(slider_values)
+#     model  = tf.keras.models.model_from_json(model_JSON)
+#     weights = pickle.loads(codecs.decode(weightsB64.encode('latin1'), "base64"))
+#     model.set_weights(weights)
+#     print(model.summary())
 
-    #slider_values = [22.8,16.2,5.4,7.7,31.0,7.0,6,82,32,1024.1,0.0]
-    # df = pd.DataFrame([slider_values])
-    # df.columns =vars
-    test_predictions = model.predict([slider_values]).flatten()
+#     #slider_values = [22.8,16.2,5.4,7.7,31.0,7.0,6,82,32,1024.1,0.0]
+#     # df = pd.DataFrame([slider_values])
+#     # df.columns =vars
+#     test_predictions = model.predict([slider_values]).flatten()
 
-    #test_predictions = model.predict(df).flatten()
-    return slider_values, html.H3("{:.2f}".format(test_predictions[0]))
+#     #test_predictions = model.predict(df).flatten()
+#     return slider_values, html.H3("{:.2f}".format(test_predictions[0]))
+
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    dash_app.run_server(debug=True)
