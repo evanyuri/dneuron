@@ -38,7 +38,7 @@ html.H6(children='Make machine learning and insights easy and for the masses', s
 html.A("Kruchowy.com", href='https://www.kruchowy.com', target="_blank", className='link-1'),
 
 html.Div(className="virus"),
-html.Div(style={'border-radius': '20px', 'padding':'30px'},
+html.Div(style={'border-radius': '20px', 'padding':'30px'},  # type: ignore
     children=[
 
     dbc.Row([
@@ -52,18 +52,12 @@ html.Div(style={'border-radius': '20px', 'padding':'30px'},
     dcc.Dropdown(id='variables', multi = True, placeholder='Choose Variables',options=[],value=[], style={'margin-bottom': '15px'}),
     html.H5(children='3. Choose output to predict'),
     dcc.Dropdown(id='outputs', multi = False, placeholder='Choose Output',options=[], style={'margin-bottom': '15px'}),
-    html.Button('Build!',id ='train-button', className="button-col-3", style={'width': '100%',}),
+    html.Button('Build!',id ='train-button', className="button-col-3", style={'width': '100%',}),], style={'width':'300px'}),
 
-    ], style={'width':'300px'}),
-    # html.Div([
-    #     html.Div('text'),
-    # ], style={'width':'500px', 'background-color':'yellow'}),     
-    html.Div([
-        html.Div(id='results'),
-    ], style={'width':'600px'}), 
-    html.Div([
-        html.Div(id='slider-div-parent'),
-    ], style={'width':'200px'}), 
+    html.Div([dbc.Spinner(spinner_style={'width':'6em','height':'6em', 'position': 'absolute','right':'30%','top':'150px'},children= html.Div(id='results'),),], style={'width':'600px'}),
+    html.Div([dbc.Spinner(spinner_style={'width':'6em','height':'6em', 'position': 'absolute','right':'30%','top':'150px'},children=html.Div(id='slider-div-parent'),),], style={'width':'200px'}),
+
+
     dcc.Store(id='intermediate-value'),
     dcc.Store(id='intermediate-model'),
     dcc.Store(id='intermediate-weights'),
@@ -138,7 +132,7 @@ def build_model(n_clicks, vars, output, df_JSON):
         df = df.dropna()
         #print(df)
         train_dataset = df.sample(frac=0.8, random_state=0)
-        test_dataset = df.drop(train_dataset.index)
+        test_dataset = df.drop(train_dataset.index)  # type: ignore
 
         train_features = train_dataset.copy()
         test_features = test_dataset.copy()
@@ -282,32 +276,32 @@ def build_sliders(n_clicks, vars, output, df_JSON, model_JSON):
                 sliders])
     else: return []
 
-# @dash_app.callback(
+@dash_app.callback(
 
-#     Output({'type':'cutsom-sliders', 'id': ALL}, 'value'),
-#     Output('model-outcome', 'children'),
+    Output({'type':'cutsom-sliders', 'id': ALL}, 'value'),
+    Output('model-outcome', 'children'),
 
-#     Input({'type':'cutsom-sliders', 'id': ALL}, 'value'),
-#     State('variables', 'value'),
-#     Input('intermediate-model', 'data'),
-#     Input('intermediate-weights', 'data'),
-#     )
+    Input({'type':'cutsom-sliders', 'id': ALL}, 'value'),
+    State('variables', 'value'),
+    Input('intermediate-model', 'data'),
+    Input('intermediate-weights', 'data'),
+    )
 
 
-# def update_sliders(slider_values, vars, model_JSON, weightsB64):
-#     #print(slider_values)
-#     model  = tf.keras.models.model_from_json(model_JSON)
-#     weights = pickle.loads(codecs.decode(weightsB64.encode('latin1'), "base64"))
-#     model.set_weights(weights)
-#     print(model.summary())
+def update_sliders(slider_values, vars, model_JSON, weightsB64):
+    #print(slider_values)
+    model  = tf.keras.models.model_from_json(model_JSON)
+    weights = pickle.loads(codecs.decode(weightsB64.encode('latin1'), "base64"))
+    model.set_weights(weights)
+    print(model.summary())
 
-#     #slider_values = [22.8,16.2,5.4,7.7,31.0,7.0,6,82,32,1024.1,0.0]
-#     # df = pd.DataFrame([slider_values])
-#     # df.columns =vars
-#     test_predictions = model.predict([slider_values]).flatten()
+    #slider_values = [22.8,16.2,5.4,7.7,31.0,7.0,6,82,32,1024.1,0.0]
+    # df = pd.DataFrame([slider_values])
+    # df.columns =vars
+    test_predictions = model.predict([slider_values]).flatten()
 
-#     #test_predictions = model.predict(df).flatten()
-#     return slider_values, html.H3("{:.2f}".format(test_predictions[0]))
+    #test_predictions = model.predict(df).flatten()
+    return slider_values, html.H3("{:.2f}".format(test_predictions[0]))
 
 
 if __name__ == '__main__':
