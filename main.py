@@ -1,6 +1,6 @@
 #Dash Plotly Libraries
 import dash
-from dash import Dash, dcc, html, Input, Output, State, ALL
+from dash import dcc, html, Input, Output, State, ALL
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
 # ML Libraries
@@ -11,16 +11,12 @@ import pandas as pd
 import numpy as np
 import base64
 import io
-from json import JSONEncoder
-import json
 import pickle
 import codecs
 
 dash_app = dash.Dash(__name__, assets_folder='assets', title = 'Deep Neuron',
 external_stylesheets = [dbc.themes.BOOTSTRAP, '/assets/style.css'],
 suppress_callback_exceptions=True,)
-# dash_app.title = 'Deep Neuron'
-# app = dash_app.server()
 app = dash_app.server
 
 
@@ -29,7 +25,7 @@ dash_app.layout = html.Div(style={},
     children=[ 
 html.Div(children=[
 html.H1(children='Deep Neuron', ),
-html.H6(children='Make machine learning and insights easy and for the masses', style={'color':'rgb(240,200,255)'}),
+html.H6(children='A Simple Neural Net Visualization and Prediction Tool.', style={'color':'rgb(240,200,255)'}),
 
 ],style={'color':'white','background-image':'linear-gradient(to right, rgb(100,20,150), rgb(150,50,200))', 
 'padding':'20px', 'padding-left':'20px'},
@@ -44,20 +40,15 @@ html.Div(style={'border-radius': '20px', 'padding':'30px'},  # type: ignore
     dbc.Row([
     html.Div([
         html.H5(children='1. Upload single header data file (.csv or Excel)'),
-        
         dcc.Upload(id='upload-data',children=html.Div(['Drop or ',html.A('Select File')]),multiple=False,className='dropIn',),
         html.A("Or download example weather data to use", href='https://drive.google.com/file/d/1HN4-2rccp-vELPO1BLpJmH92fpH61X62/view?usp=sharing', target="_blank",style={'font-size': '12px','text-decoration': 'none', 'padding':'5px', 'margin-bottom':'10px'}),
-
-    html.H5(children='2. Choose variables', style={'margin-top':'20px'}),
+    html.H5(children='2. Choose variables (max 5)', style={'margin-top':'20px'}),
     dcc.Dropdown(id='variables', multi = True, placeholder='Choose Variables',options=[],value=[], style={'margin-bottom': '15px'}),
     html.H5(children='3. Choose output to predict'),
     dcc.Dropdown(id='outputs', multi = False, placeholder='Choose Output',options=[], style={'margin-bottom': '15px'}),
     html.Button('Build!',id ='train-button', className="button-col-3", style={'width': '100%',}),], style={'width':'300px'}),
-
     html.Div([dbc.Spinner(spinner_style={'width':'6em','height':'6em', 'position': 'absolute','right':'30%','top':'150px'},children= html.Div(id='results'),),], style={'width':'600px'}),
     html.Div([dbc.Spinner(spinner_style={'width':'6em','height':'6em', 'position': 'absolute','right':'30%','top':'150px'},children=html.Div(id='slider-div-parent'),),], style={'width':'200px'}),
-
-
     dcc.Store(id='intermediate-value'),
     dcc.Store(id='intermediate-model'),
     dcc.Store(id='intermediate-weights'),
@@ -75,7 +66,7 @@ html.Div(style={'border-radius': '20px', 'padding':'30px'},  # type: ignore
     Input('upload-data', 'contents',),
     State('upload-data', 'filename'),
     Input('outputs', 'value'),
-    State('variables', 'value'),
+    Input('variables', 'value'),
 
     prevent_initial_call=True,
 )
@@ -103,27 +94,28 @@ def ingest_csv(contents, fname, output, vars):
             output = df.columns[0]
         # Remove output from variable options
         if vars == []:
-            vars = df.columns.tolist()
+            vars = df.columns[:6].tolist()
         var_options = df.columns.tolist()
+        if len(vars) > 5:
+            del vars[-2]
         if output in vars:
-            var_options.remove(output)       
+            var_options.remove(output)
+            vars.remove(output)       
         return var_options, vars, df.columns.tolist(), output, df.to_json(date_format='iso', orient='split')
-        # except Exception as e:
-        #     print(e)
-        #     return [], [], [], []
+
 
 @dash_app.callback(
 
     Output('results', 'children'),
     Output('intermediate-model', 'data'),
     Output('intermediate-weights', 'data'),
-
     Input('train-button', 'n_clicks'),
     State('variables', 'value'),
     State('outputs', 'value'),
     State('intermediate-value', 'data'),
 )
 def build_model(n_clicks, vars, output, df_JSON):
+    print(vars)
     print(output)
     changed_id = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
     if 'train-button' in changed_id:
@@ -166,8 +158,6 @@ def build_model(n_clicks, vars, output, df_JSON):
             validation_split=0.2,
             verbose=0, epochs=100)
 
-        # print(history.history['loss'])
-        # print(history.history['val_loss'])
         losses = pd.DataFrame(
         {'loss': history.history['loss'],
         'val_loss': history.history['val_loss'],})
@@ -178,7 +168,6 @@ def build_model(n_clicks, vars, output, df_JSON):
         fig_losses.update_xaxes(showline=True, linewidth=1, linecolor='black', mirror=True, showgrid =False, zeroline = False, title='Epoch')
         fig_losses.update_yaxes(showline=True, linewidth=1, linecolor='black', mirror=True, showgrid = False, zeroline = False, title ='Error')
 
-        print(test_features)
         test_predictions = model.predict(test_features).flatten()
         X = test_labels.values.reshape(-1,1)
         LR_model = LinearRegression()
@@ -199,8 +188,7 @@ def build_model(n_clicks, vars, output, df_JSON):
 
         fig_nodes = go.Figure()
         layers = model.layers
-        #print(layers[1].name)
-        print(layers[1])
+
         for k in range(1,len(layers)):
             layer_nodes = np.shape(model.get_layer(layers[k].name).weights[0])[0]
             for i in range(layer_nodes):
@@ -216,19 +204,16 @@ def build_model(n_clicks, vars, output, df_JSON):
         fig_nodes.update_layout(margin=dict(l=1, r=10, t=30, b=70), plot_bgcolor = "white", paper_bgcolor="white", showlegend=False, hovermode=False,)
         fig_nodes.update_xaxes(range = [0.9,len(layers)+0.1], showticklabels=False, showline=False, linewidth=1, linecolor='black', mirror=True, showgrid =False, zeroline = False)
         fig_nodes.update_yaxes(tickvals=np.arange(-len(model.get_weights()[0])/2,len(model.get_weights()[0]/2)), ticktext = vars, showline=False, showticklabels=True, linewidth=1, linecolor='black', mirror=True, showgrid = False, zeroline = False)
-
-        print(model.summary())
         div = [
             html.H3('Model Strength'),
             dbc.Row([
             dbc.Col(dcc.Graph(figure=fig_losses, config={'displaylogo': False,  'displayModeBar': False}, style={'height':'20em'})),
             dbc.Col(dcc.Graph(figure=fig_test, config={'displaylogo': False,  'displayModeBar': False}, style={'height':'20em'})),
             ]),
+            html.H5('Weights'),
             dcc.Graph(figure=fig_nodes, config={'displaylogo': False, 'displayModeBar': False}, style={'height':'50em'})]
 
         weights_list = model.get_weights()
-
-
         obj = weights_list
         obj_base64string = codecs.encode(pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL), "base64").decode('latin1')
 
@@ -280,7 +265,6 @@ def build_sliders(n_clicks, vars, output, df_JSON, model_JSON):
 
     Output({'type':'cutsom-sliders', 'id': ALL}, 'value'),
     Output('model-outcome', 'children'),
-
     Input({'type':'cutsom-sliders', 'id': ALL}, 'value'),
     State('variables', 'value'),
     Input('intermediate-model', 'data'),
@@ -289,20 +273,12 @@ def build_sliders(n_clicks, vars, output, df_JSON, model_JSON):
 
 
 def update_sliders(slider_values, vars, model_JSON, weightsB64):
-    #print(slider_values)
     model  = tf.keras.models.model_from_json(model_JSON)
     weights = pickle.loads(codecs.decode(weightsB64.encode('latin1'), "base64"))
     model.set_weights(weights)
-    print(model.summary())
-
-    #slider_values = [22.8,16.2,5.4,7.7,31.0,7.0,6,82,32,1024.1,0.0]
-    # df = pd.DataFrame([slider_values])
-    # df.columns =vars
     test_predictions = model.predict([slider_values]).flatten()
-
-    #test_predictions = model.predict(df).flatten()
     return slider_values, html.H3("{:.2f}".format(test_predictions[0]))
 
 
 if __name__ == '__main__':
-    dash_app.run_server(debug=True)
+    dash_app.run_server(debug=False)
